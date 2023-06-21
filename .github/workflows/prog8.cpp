@@ -1,121 +1,103 @@
-#include<GL/glut.h>
 #include<stdio.h>
-#include<math.h>
-#define PI 3.1416
-GLsizei winWidth = 600, winHeight = 600;
-GLfloat xwcMin = 0.0, xwcMax = 130.0;
-GLfloat ywcMin = 0.0, ywcMax = 130.0;
-typedef struct wcPt3D
+#include<stdlib.h>
+#include<GL/glut.h>
+float x1=200.0, y1=200.0, x2=100, y2=300.0, x3=200, y3=400.0, x4=300.0, y4=300, le[500], re[500];
+int fillflag = 0;
+void init()
 {
-	GLfloat x, y, z;
-};
-void bino(GLint n, GLint *C)
-{
-	GLint k, j;
-	for(k=0;k<=n;k++)
-{
-	C[k]=1;
-	for(j=n;j>=k+1; j--)
-C[k]*=j;
-for(j=n-k;j>=2;j--)
-C[k]/=j;
+	glClearColor(1.0, 1.0, 1.0, 1.0);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	gluOrtho2D(0.0, 500.0, 0.0, 500.0);
 }
-}
-void computeBezPt(GLfloat u, wcPt3D *bezPt, GLint nCtrlPts, wcPt3D *ctrlPts, GLint*C)
+void edgedetect(float x1, float y1, float x2, float y2)
 {
-GLint k, n=nCtrlPts-1;
-GLfloat bezBlendFcn;
-bezPt ->x =bezPt ->y = bezPt->z=0.0;
-for(k=0; k< nCtrlPts; k++)
-{
-bezBlendFcn = C[k] * pow(u, k) * pow( 1-u, n-k);
-bezPt ->x += ctrlPts[k].x * bezBlendFcn;
-bezPt ->y += ctrlPts[k].y * bezBlendFcn;
-bezPt ->z += ctrlPts[k].z * bezBlendFcn;
-}
-}
-void bezier(wcPt3D *ctrlPts, GLint nCtrlPts, GLint nBezCurvePts)
-{
-wcPt3D bezCurvePt;
-GLfloat u;
-GLint *C, k;
-C= new GLint[nCtrlPts];
-bino(nCtrlPts-1, C);
-glBegin(GL_LINE_STRIP);
-for(k=0; k<=nBezCurvePts; k++)
+	float temp, x, m;
+	if ((y2 - y1) < 0)
 	{
-u=GLfloat(k)/GLfloat(nBezCurvePts);
-computeBezPt(u, &bezCurvePt, nCtrlPts, ctrlPts, C);
-glVertex2f(bezCurvePt.x, bezCurvePt.y);
+		temp = y1;
+		y1 = y2;
+		y2 = temp;
+		temp = x1;
+		x1 = x2;
+		x2 = temp;
+	}
+	if ((y2 - y1) != 0)
+		m = (x2 - x1) / (y2 - y1);
+	else
+		m = x2 - x1;
+	x = x1;
+	for (int i = y1; i <= y2; i++)
+	{
+		if (x < le[i])
+			le[i] = x;
+		if (x > re[i])
+			re[i] = x;
+		x += m;
+	}
 }
-glEnd();
-delete[]C;
-}
-void displayFcn()
+void draw_pixel(int x, int y)
 {
-GLint nCtrlPts = 4, nBezCurvePts =20;
-static float theta = 0;
-wcPt3D ctrlPts[4] = { {20, 100, 0},{30, 110, 0},{50, 90, 0},{60, 100, 0}};
-ctrlPts[1].x +=10*sin(theta * PI/180.0);
-ctrlPts[1].y +=5*sin(theta * PI/180.0);
-ctrlPts[2].x -= 10*sin((theta+30) * PI/180.0);
-ctrlPts[2].y -= 10*sin((theta+30) * PI/180.0);
-ctrlPts[3].x-= 4*sin((theta) * PI/180.0);
-ctrlPts[3].y += sin((theta-30) * PI/180.0);
-theta+=0.1;
-glClear(GL_COLOR_BUFFER_BIT);
-glColor3f(1.0, 1.0, 1.0);
-glPointSize(5);
-glPushMatrix();
-glLineWidth(5);
-glColor3f(255/255, 153/255.0, 51/255.0);
-for(int i=0;i<8;i++)
-{
-glTranslatef(0, -0.8, 0);
-bezier(ctrlPts, nCtrlPts, nBezCurvePts);
+	glColor3f(0.0, 1.0, 0.0);
+	glBegin(GL_POINTS);
+	glVertex2i(x, y);
+	glEnd();
 }
-glColor3f(1, 1, 1); 
-for(int i=0;i<8;i++)
+void scanfill()
 {
-glTranslatef(0, -0.8, 0);
-bezier(ctrlPts, nCtrlPts, nBezCurvePts);
+	int i, y;
+	for (i = 0; i < 500; i++)
+	{
+		le[i] = 500;
+		re[i] = 0;
+	}
+	edgedetect(x1, y1, x2, y2);
+	edgedetect(x2, y2, x3, y3);
+	edgedetect(x3, y3, x4, y4);
+	edgedetect(x4, y4, x1, y1);
+	for (y =0 ; y < 500; y++)
+	{
+		if (le[y] <= re[y])
+		{
+			for (i = le[y]; i < re[y]; i++)
+				draw_pixel(i, y);
+		}
+	}
 }
-glColor3f(19/255.0, 136/255.0, 8/255.0); 
-for(int i=0;i<8;i++)
+void display()
 {
-glTranslatef(0, -0.8, 0);
-bezier(ctrlPts, nCtrlPts, nBezCurvePts);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glColor3f(0.0,0.0,0.0);
+	glBegin(GL_LINE_LOOP);
+	glVertex2f(x1, y1);
+	glVertex2f(x2, y2);
+	glVertex2f(x3, y3);
+	glVertex2f(x4, y4);
+	glEnd();
+	if (fillflag == 1)
+		scanfill();
+	glFlush();
 }
-glPopMatrix();
-glColor3f(0.7, 0.5,0.3);
-glLineWidth(5);
-glBegin(GL_LINES);
-glVertex2f(20,100);
-glVertex2f(20,40);
-glEnd();
-glFlush();
-glutPostRedisplay();
-glutSwapBuffers();
-}
-
-
-void winReshapeFun(GLint newWidth, GLint newHeight)
+void fillmenu(int option)
 {
-glViewport(0, 0, newWidth, newHeight);
-glMatrixMode(GL_PROJECTION);
-glLoadIdentity();
-gluOrtho2D(xwcMin, xwcMax, ywcMin, ywcMax);
-glClear(GL_COLOR_BUFFER_BIT);
+	if (option == 1)
+		fillflag = 1;
+	if (option == 2)
+		fillflag = 2;
+	display();
 }
-
-void main(int argc, char **argv)
+void main(int argc, char** argv)
 {
-glutInit(&argc, argv);
-glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-glutInitWindowPosition(50, 50);
-glutInitWindowSize(winWidth, winHeight);
-glutCreateWindow("Bezier Curve-Animate Indian Flag");
-glutDisplayFunc(displayFcn);
-glutReshapeFunc(winReshapeFun);
-glutMainLoop();
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_SINGLE| GLUT_RGB);
+	glutInitWindowPosition(0,0);
+	glutInitWindowSize(500,500);
+	glutCreateWindow("Scan Line fill");
+	init();
+	glutDisplayFunc(display);
+	glutCreateMenu(fillmenu);
+	glutAddMenuEntry("Fill polygon", 1);
+	glutAddMenuEntry("Empty polygon", 2);
+	glutAttachMenu(GLUT_RIGHT_BUTTON);
+	glutMainLoop();
 }
